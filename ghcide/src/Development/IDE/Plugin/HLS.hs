@@ -121,7 +121,7 @@ asGhcIdePlugin recorder (IdePlugins ls) =
     mkPlugin (executeCommandPlugins recorder) HLS.pluginCommands <>
     mkPlugin (extensiblePlugins recorder) id <>
     mkPlugin (extensibleNotificationPlugins recorder) id <>
-    mkPluginFromDescriptor dynFlagsPlugins HLS.pluginModifyDynflags
+    mkPluginFromDescriptor dynFlagsPlugins HLS.pluginModifyGhcOpts
     where
         mkPlugin f = mkPluginFromDescriptor (f . map (first pluginId))
 
@@ -145,9 +145,9 @@ rulesPlugins rs = mempty { P.pluginRules = rules }
     where
         rules = foldMap snd rs
 
-dynFlagsPlugins :: [(PluginDescriptor c, DynFlagsModifications)] -> Plugin Config
+dynFlagsPlugins :: [(PluginDescriptor c, GhcOptsModifications)] -> Plugin Config
 dynFlagsPlugins rs = mempty
-  { P.pluginModifyDynflags =
+  { P.pluginModifyGhcOpts =
       flip foldMap rs $ \(plId, dflag_mods) cfg ->
         let plg_cfg = configForPlugin cfg plId
          in if plcGlobalOn plg_cfg

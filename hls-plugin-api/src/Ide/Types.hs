@@ -29,7 +29,7 @@ module Ide.Types
 , IdeMethod(..)
 , IdeNotification(..)
 , IdePlugins(IdePlugins, ipMap)
-, DynFlagsModifications(..)
+, GhcOptsModifications(..)
 , Config(..), PluginConfig(..), CheckParents(..)
 , ConfigDescriptor(..), defaultConfigDescriptor, configForPlugin, pluginEnabledConfig
 , CustomConfig(..), mkCustomConfig
@@ -97,6 +97,10 @@ import           Options.Applicative           (ParserInfo)
 import           System.FilePath
 import           System.IO.Unsafe
 import           Text.Regex.TDFA.Text          ()
+
+#if MIN_VERSION_ghc(9,2,0)
+import           GHC.Plugins (StaticPlugin)
+#endif
 -- ---------------------------------------------------------------------
 
 data IdePlugins ideState = IdePlugins_
@@ -126,10 +130,10 @@ lookupPluginId ls cmd = pluginId <$> find go ls
     go desc = cmd `elem` map commandId (pluginCommands desc)
 
 -- | Hooks for modifying the 'DynFlags' at different times of the compilation
--- process. Plugins can install a 'DynFlagsModifications' via
+-- process. Plugins can install a 'GhcOptsModifications' via
 -- 'pluginModifyDynflags' in their 'PluginDescriptor'.
-data DynFlagsModifications =
-  DynFlagsModifications
+data GhcOptsModifications =
+  GhcOptsModifications
     { -- | Invoked immediately at the package level. Changes to the 'DynFlags'
       -- made in 'dynFlagsModifyGlobal' are guaranteed to be seen everywhere in
       -- the compilation pipeline.
@@ -139,14 +143,26 @@ data DynFlagsModifications =
       -- extensions only during parsing. for example, to let them enable
       -- certain pieces of syntax.
     , dynFlagsModifyParser :: DynFlags -> DynFlags
+#if MIN_VERSION_ghc(9,2,0)
+   , staticPlugins :: [StaticPlugin]
+#endif
     }
 
-instance Semigroup DynFlagsModifications where
-  DynFlagsModifications g1 p1 <> DynFlagsModifications g2 p2 =
-    DynFlagsModifications (g2 . g1) (p2 . p1)
+#if MIN_VERSION_ghc(9,2,0)
+instance Semigroup GhcOptsModifications where
+  GhcOptsModifications g1 p1 plugins1 <> GhcOptsModifications g2 p2 plugins2 =
+    GhcOptsModifications (g2 . g1) (p2 . p1) (plugins1 <> plugins2)
 
-instance Monoid DynFlagsModifications where
-  mempty = DynFlagsModifications id id
+instance Monoid GhcOptsModifications where
+  mempty = GhcOptsModifications id id []
+#else
+instance Semigroup GhcOptsModifications where
+  GhcOptsModifications g1 p1 <> GhcOptsModifications g2 p2 =
+    GhcOptsModifications (g2 . g1) (p2 . p1)
+
+instance Monoid GhcOptsModifications where
+  mempty = GhcOptsModifications id id
+#endif
 
 -- ---------------------------------------------------------------------
 
@@ -266,7 +282,7 @@ data PluginDescriptor (ideState :: *) =
                    , pluginHandlers     :: PluginHandlers ideState
                    , pluginConfigDescriptor :: ConfigDescriptor
                    , pluginNotificationHandlers :: PluginNotificationHandlers ideState
-                   , pluginModifyDynflags :: DynFlagsModifications
+                   , pluginModifyGhcOpts  :: GhcOptsModifications
                    , pluginCli            :: Maybe (ParserInfo (IdeCommand ideState))
                    , pluginFileType       :: [T.Text]
                    -- ^ File extension of the files the plugin is responsible for.

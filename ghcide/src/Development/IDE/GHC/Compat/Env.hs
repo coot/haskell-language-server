@@ -33,6 +33,7 @@ module Development.IDE.GHC.Compat.Env (
     UnitEnv,
     hscSetUnitEnv,
     hscSetFlags,
+    hscAddStaticPlugins,
     initTempFs,
     -- * Home Unit
     Development.IDE.GHC.Compat.Env.homeUnitId_,
@@ -67,6 +68,7 @@ import qualified GHC.Driver.Env       as Env
 import qualified GHC.Driver.Session   as Session
 import           GHC.Platform.Ways    hiding (hostFullWays)
 import qualified GHC.Platform.Ways    as Ways
+import           GHC.Plugins (StaticPlugin)
 import           GHC.Runtime.Context
 import           GHC.Unit.Env         (UnitEnv)
 import           GHC.Unit.Home        as Home
@@ -126,6 +128,11 @@ setHomeUnitId_ uid df = df { thisInstalledUnitId = toInstalledUnitId uid }
 
 hscSetFlags :: DynFlags -> HscEnv -> HscEnv
 hscSetFlags df env = env { Env.hsc_dflags = df }
+
+hscAddStaticPlugins :: [StaticPlugin] -> HscEnv -> HscEnv
+#if MIN_VERSION_ghc(9,2,0)
+hscAddStaticPlugins plugins env = env { Env.hsc_static_plugins = Env.hsc_static_plugins env <> plugins }
+#endif
 
 initTempFs :: HscEnv -> IO HscEnv
 initTempFs env = do

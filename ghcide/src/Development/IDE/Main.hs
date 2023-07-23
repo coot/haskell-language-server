@@ -63,7 +63,7 @@ import           Development.IDE.Main.HeapStats           (withHeapStats)
 import qualified Development.IDE.Main.HeapStats           as HeapStats
 import qualified Development.IDE.Monitoring.EKG           as EKG
 import qualified Development.IDE.Monitoring.OpenTelemetry as OpenTelemetry
-import           Development.IDE.Plugin                   (Plugin (pluginHandlers, pluginModifyDynflags, pluginRules))
+import           Development.IDE.Plugin                   (Plugin (pluginHandlers, pluginModifyGhcOpts, pluginRules))
 import           Development.IDE.Plugin.HLS               (asGhcIdePlugin)
 import qualified Development.IDE.Plugin.HLS               as PluginHLS
 import qualified Development.IDE.Plugin.HLS.GhcIde        as GhcIde
@@ -91,7 +91,7 @@ import           Development.IDE.Types.Options            (IdeGhcSession,
                                                            IdeTesting (IdeTesting),
                                                            clientSupportsProgress,
                                                            defaultIdeOptions,
-                                                           optModifyDynFlags,
+                                                           optModifyGhcOpts,
                                                            optTesting)
 import           Development.IDE.Types.Shake              (WithHieDb)
 import           GHC.Conc                                 (getNumProcessors)
@@ -334,7 +334,7 @@ defaultMain recorder Arguments{..} = withHeapStats (cmapWithPrio LogHeapStats re
 
                   let options = def_options
                               { optReportProgress = clientSupportsProgress caps
-                              , optModifyDynFlags = optModifyDynFlags def_options <> pluginModifyDynflags plugins
+                              , optModifyGhcOpts = optModifyGhcOpts def_options <> pluginModifyGhcOpts plugins
                               , optRunSubset = runSubset
                               }
                       caps = LSP.resClientCapabilities env
@@ -385,7 +385,7 @@ defaultMain recorder Arguments{..} = withHeapStats (cmapWithPrio LogHeapStats re
                 options = def_options
                         { optCheckParents = pure NeverCheck
                         , optCheckProject = pure False
-                        , optModifyDynFlags = optModifyDynFlags def_options <> pluginModifyDynflags plugins
+                        , optModifyGhcOpts = optModifyGhcOpts def_options <> pluginModifyGhcOpts plugins
                         }
             ide <- initialise (cmapWithPrio LogService recorder) argsDefaultHlsConfig argsHlsPlugins rules Nothing logger debouncer options hiedb hieChan mempty
             shakeSessionInit (cmapWithPrio LogShake recorder) ide
@@ -423,7 +423,7 @@ defaultMain recorder Arguments{..} = withHeapStats (cmapWithPrio LogHeapStats re
                 options = def_options
                     { optCheckParents = pure NeverCheck
                     , optCheckProject = pure False
-                    , optModifyDynFlags = optModifyDynFlags def_options <> pluginModifyDynflags plugins
+                    , optModifyGhcOpts = optModifyGhcOpts def_options <> pluginModifyGhcOpts plugins
                     }
             ide <- initialise (cmapWithPrio LogService recorder) argsDefaultHlsConfig argsHlsPlugins rules Nothing logger debouncer options hiedb hieChan mempty
             shakeSessionInit (cmapWithPrio LogShake recorder) ide

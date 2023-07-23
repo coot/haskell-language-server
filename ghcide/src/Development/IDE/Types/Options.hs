@@ -27,7 +27,7 @@ import           Development.IDE.GHC.Compat        as GHC
 import           Development.IDE.Graph
 import           Development.IDE.Types.Diagnostics
 import           Ide.Plugin.Config
-import           Ide.Types                         (DynFlagsModifications)
+import           Ide.Types                         (GhcOptsModifications)
 import qualified Language.LSP.Protocol.Lens        as L
 import qualified Language.LSP.Protocol.Types       as LSP
 data IdeOptions = IdeOptions
@@ -72,7 +72,7 @@ data IdeOptions = IdeOptions
     --   Otherwise, return the result of parsing without Opt_Haddock, so
     --   that the parsed module contains the result of Opt_KeepRawTokenStream,
     --   which might be necessary for hlint.
-  , optModifyDynFlags     :: Config -> DynFlagsModifications
+  , optModifyGhcOpts     :: Config -> GhcOptsModifications
     -- ^ Will be called right after setting up a new cradle,
     --   allowing to customize the Ghc options used
   , optShakeOptions       :: ShakeOptions
@@ -130,7 +130,7 @@ defaultIdeOptions session = IdeOptions
     ,optCheckProject = pure True
     ,optCheckParents = pure CheckOnSave
     ,optHaddockParse = HaddockParse
-    ,optModifyDynFlags = mempty
+    ,optModifyGhcOpts = mempty
     ,optSkipProgress = defaultSkipProgress
     ,optProgressStyle = Explicit
     ,optRunSubset = True

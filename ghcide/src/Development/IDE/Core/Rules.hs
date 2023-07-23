@@ -147,7 +147,7 @@ import           Ide.Plugin.Properties                        (HasProperty,
                                                                ToHsType,
                                                                useProperty)
 import           Ide.PluginUtils                              (configForPlugin)
-import           Ide.Types                                    (DynFlagsModifications (dynFlagsModifyGlobal, dynFlagsModifyParser),
+import           Ide.Types                                    (GhcOptsModifications (dynFlagsModifyGlobal, dynFlagsModifyParser, staticPlugins),
                                                                PluginId, PluginDescriptor (pluginId), IdePlugins (IdePlugins))
 import Control.Concurrent.STM.Stats (atomically)
 import Language.LSP.Server (LspT)
@@ -262,24 +262,25 @@ getParsedModuleRule recorder =
   define (cmapWithPrio LogShake recorder) $ \GetParsedModule file -> do
     ModSummaryResult{msrModSummary = ms', msrHscEnv = hsc} <- use_ GetModSummary file
     opt <- getIdeOptions
-    modify_dflags <- getModifyDynFlags dynFlagsModifyParser
+    (modify_dflags, ghc_plugins) <- getModifyGhcOpts (dynFlagsModifyParser &&& staticPlugins)
     let ms = ms' { ms_hspp_opts = modify_dflags $ ms_hspp_opts ms' }
         reset_ms pm = pm { pm_mod_summary = ms' }
+        hsc' = hscAddStaticPlugins ghc_plugins hsc
 
     -- We still parse with Haddocks whether Opt_Haddock is True or False to collect information
     -- but we no longer need to parse with and without Haddocks separately for above GHC90.
     res@(_,pmod) <- if Compat.ghcVersion >= Compat.GHC90 then
-      liftIO $ (fmap.fmap.fmap) reset_ms $ getParsedModuleDefinition hsc opt file (withOptHaddock ms)
+      liftIO $ (fmap.fmap.fmap) reset_ms $ getParsedModuleDefinition hsc' opt file (withOptHaddock ms)
     else do
         let dflags    = ms_hspp_opts ms
-            mainParse = getParsedModuleDefinition hsc opt file ms
+            mainParse = getParsedModuleDefinition hsc' opt file ms
 
         -- Parse again (if necessary) to capture Haddock parse errors
         if gopt Opt_Haddock dflags
             then
                 liftIO $ (fmap.fmap.fmap) reset_ms mainParse
             else do
-                let haddockParse = getParsedModuleDefinition hsc opt file (withOptHaddock ms)
+                let haddockParse = getParsedModuleDefinition hsc' opt file (withOptHaddock ms)
 
                 -- parse twice, with and without Haddocks, concurrently
                 -- we cannot ignore Haddock parse errors because files of
@@ -336,17 +337,18 @@ getParsedModuleWithCommentsRule recorder =
     opt <- getIdeOptions
 
     let ms' = withoutOption Opt_Haddock $ withOption Opt_KeepRawTokenStream ms
-    modify_dflags <- getModifyDynFlags dynFlagsModifyParser
+    (modify_dflags, ghc_plugins) <- getModifyGhcOpts (dynFlagsModifyParser &&& staticPlugins)
     let ms = ms' { ms_hspp_opts = modify_dflags $ ms_hspp_opts ms' }
         reset_ms pm = pm { pm_mod_summary = ms' }
+        hsc' = hscAddStaticPlugins ghc_plugins hsc
 
-    liftIO $ fmap (fmap reset_ms) $ snd <$> getParsedModuleDefinition hsc opt file ms
+    liftIO $ fmap (fmap reset_ms) $ snd <$> getParsedModuleDefinition hsc' opt file ms
 
-getModifyDynFlags :: (DynFlagsModifications -> a) -> Action a
-getModifyDynFlags f = do
+getModifyGhcOpts :: (GhcOptsModifications -> a) -> Action a
+getModifyGhcOpts f = do
   opts <- getIdeOptions
   cfg <- getClientConfigAction
-  pure $ f $ optModifyDynFlags opts cfg
+  pure $ f $ optModifyGhcOpts opts cfg
 
 
 getParsedModuleDefinition
@@ -896,8 +898,10 @@ getModSummaryRule displayTHWarning recorder = do
 
     defineEarlyCutoff (cmapWithPrio LogShake recorder) $ Rule $ \GetModSummary f -> do
         session' <- hscEnv <$> use_ GhcSession f
-        modify_dflags <- getModifyDynFlags dynFlagsModifyGlobal
-        let session = hscSetFlags (modify_dflags $ hsc_dflags session') session'
+        (modify_dflags, ghc_plugins) <- getModifyGhcOpts (dynFlagsModifyGlobal &&& staticPlugins)
+        let session = hscAddStaticPlugins ghc_plugins
+                    . hscSetFlags (modify_dflags $ hsc_dflags session')
+                    $ session'
         (modTime, mFileContent) <- getFileContents f
         let fp = fromNormalizedFilePath f
         modS <- liftIO $ runExceptT $
