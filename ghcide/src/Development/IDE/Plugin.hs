@@ -4,7 +4,7 @@ import           Data.Default
 import           Development.IDE.Graph
 
 import           Development.IDE.LSP.Server
-import           Ide.Types                  (GhcOptsModifications)
+import           Ide.Types                  (GhcOptsModifications, PluginConfig)
 import qualified Language.LSP.Server        as LSP
 
 data Plugin c = Plugin

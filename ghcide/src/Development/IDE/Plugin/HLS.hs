@@ -126,8 +126,7 @@ asGhcIdePlugin recorder (IdePlugins ls) =
         mkPlugin f = mkPluginFromDescriptor (f . map (first pluginId))
 
         mkPluginFromDescriptor
-            :: ([(PluginDescriptor IdeState, b)]
-            -> Plugin Config)
+            :: ([(PluginDescriptor IdeState, b)] -> Plugin Config)
             -> (PluginDescriptor IdeState -> b)
             -> Plugin Config
         mkPluginFromDescriptor maker selector =
@@ -145,13 +144,13 @@ rulesPlugins rs = mempty { P.pluginRules = rules }
     where
         rules = foldMap snd rs
 
-dynFlagsPlugins :: [(PluginDescriptor c, GhcOptsModifications)] -> Plugin Config
+dynFlagsPlugins :: [(PluginDescriptor c, PluginConfig -> GhcOptsModifications)] -> Plugin Config
 dynFlagsPlugins rs = mempty
   { P.pluginModifyGhcOpts =
-      flip foldMap rs $ \(plId, dflag_mods) cfg ->
-        let plg_cfg = configForPlugin cfg plId
+      flip foldMap rs $ \(plg, mkGhcOptsModifications) cfg ->
+        let plg_cfg = configForPlugin cfg plg
          in if plcGlobalOn plg_cfg
-              then dflag_mods
+              then mkGhcOptsModifications plg_cfg
               else mempty
   }
 

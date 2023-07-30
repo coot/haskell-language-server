@@ -282,7 +282,7 @@ data PluginDescriptor (ideState :: *) =
                    , pluginHandlers     :: PluginHandlers ideState
                    , pluginConfigDescriptor :: ConfigDescriptor
                    , pluginNotificationHandlers :: PluginNotificationHandlers ideState
-                   , pluginModifyGhcOpts  :: GhcOptsModifications
+                   , pluginModifyGhcOpts  :: PluginConfig -> GhcOptsModifications
                    , pluginCli            :: Maybe (ParserInfo (IdeCommand ideState))
                    , pluginFileType       :: [T.Text]
                    -- ^ File extension of the files the plugin is responsible for.
